@@ -10,12 +10,25 @@ if (!existsSync(DOWNLOADS_DIR)) {
   mkdirSync(DOWNLOADS_DIR, { recursive: true });
 }
 
-const YTDLP_PATH = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe\\yt-dlp.exe";
-const FFMPEG_PATH = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-N-123074-g4e32fb4c2a-win64-gpl\\bin\\ffmpeg.exe";
+// ─── BINARY CONFIGURATION ───
+const LOCAL_YTDLP = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe\\yt-dlp.exe";
+const LOCAL_FFMPEG = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-N-123074-g4e32fb4c2a-win64-gpl\\bin\\ffmpeg.exe";
 
 function getExecutable(name: "yt-dlp" | "ffmpeg") {
-  const fallback = name === "yt-dlp" ? YTDLP_PATH : FFMPEG_PATH;
-  if (existsSync(fallback)) return fallback;
+  // 1. Check local 'bin' directory (Essential for Vercel/Production)
+  const isWin = process.platform === "win32";
+  const binaryName = isWin ? `${name}.exe` : name;
+  const projectBin = join(process.cwd(), "bin", binaryName);
+  
+  if (existsSync(projectBin)) return projectBin;
+
+  // 2. Check hardcoded local Windows paths
+  if (isWin) {
+    const fallback = name === "yt-dlp" ? LOCAL_YTDLP : LOCAL_FFMPEG;
+    if (existsSync(fallback)) return fallback;
+  }
+
+  // 3. Last resort: use system command
   return name;
 }
 

@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 
-// Fallback paths for Windows if not in environment PATH
-const YTDLP_PATH = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe\\yt-dlp.exe";
+import { join } from "path";
+
+// ─── BINARY CONFIGURATION ───
+// These paths are used for local Windows development
+const LOCAL_YTDLP = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe\\yt-dlp.exe";
 
 function getExecutable() {
-  if (existsSync(YTDLP_PATH)) return YTDLP_PATH;
-  return "yt-dlp"; // Rely on system PATH
+  // 1. Check project 'bin' folder (Essential for Vercel/Production)
+  const projectBin = join(process.cwd(), "bin", process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
+  if (existsSync(projectBin)) return projectBin;
+
+  // 2. Check hardcoded local Windows path
+  if (process.platform === "win32" && existsSync(LOCAL_YTDLP)) return LOCAL_YTDLP;
+
+  // 3. Last resort: assume it's in system PATH
+  return "yt-dlp";
 }
 
 // ─── Platform Detection ───
