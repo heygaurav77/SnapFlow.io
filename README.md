@@ -1,9 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SnapFlow.io
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/ce1d2b1b-55d4-46a2-8427-7626b5b35f75" />
+
+
+A modern, fast, and secure web application for downloading media from social platforms and shortening URLs. Built with Next.js, TypeScript, and Tailwind CSS.
+
+🌐 **Live Demo**: [https://snap-flow-io.vercel.app/](https://snap-flow-io.vercel.app/)
+
+## Features
+
+- **Media Downloader**: Download videos and media from YouTube, TikTok, Instagram, Pinterest, Twitter, and Facebook
+- **URL Shortener**: Create short, shareable links instantly
+- **Fast & Secure**: Optimized performance with security best practices
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
+- **Modern UI**: Beautiful interface with particle effects and smooth animations
+
+## Tech Stack
+
+- **Framework**: Next.js 16
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Deployment**: Vercel
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- npm, yarn, pnpm, or bun
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/heygaurav77/SnapFlow.io.git
+cd SnapFlow.io
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
+
+3. Run the development server:
 ```bash
 npm run dev
 # or
@@ -14,25 +58,36 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Media Downloader
+1. Navigate to the main page
+2. Paste a social media URL
+3. Select your preferred quality/format
+4. Download your media
 
-## Learn More
+### URL Shortener
+1. Go to the `/shortener` page
+2. Enter your long URL
+3. Get your shortened link instantly
 
-To learn more about Next.js, take a look at the following resources:
+## API Routes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `GET /api/health` - Health check
+- `POST /api/fetch` - Fetch media information
+- `POST /api/download` - Download media
+- `POST /api/thumbnail` - Get video thumbnails
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contributing
 
-## Deploy on Vercel
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is private and proprietary.
 
-This line was added as per request.
+## Disclaimer
+
+This tool is for educational and personal use only. Please respect copyright laws and platform terms of service when downloading content.
