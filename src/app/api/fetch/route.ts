@@ -84,10 +84,10 @@ function getMediaInfo(url: string, platform: string): Promise<MediaInfo> {
       "--no-warnings",
       "--dump-json",
       "--no-download",
-      "--socket-timeout", "25",
+      "--socket-timeout", "15",
       "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       "--no-check-certificates",
-      "--geo-bypass",
+      "--no-mtime", // Faster processing
     ];
 
     if (platform === "instagram") {
@@ -354,9 +354,19 @@ export async function POST(request: NextRequest) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error("[FETCH ERROR]", errorMessage);
     
-    let errorResponse = "Access Restricted or Invalid Link. Ensure the profile/post is PUBLIC and try again.";
-    if (errorMessage.includes("login wall")) {
-      errorResponse = "This content requires an Instagram login or is PRIVATE. Please try a public link.";
+    let errorResponse = "Access Restricted or Invalid Link. Ensure the content is PUBLIC and try again.";
+    
+    if (errorMessage.includes("Sign in to confirm you are not a bot")) {
+      errorResponse = "YouTube Anti-Bot Detection: Please try again in 5-10 minutes or use a different video link.";
+    } else if (errorMessage.includes("login wall") || errorMessage.includes("Private video")) {
+      errorResponse = "This content is PRIVATE or requires a login. Please try a public link.";
+    } else if (errorMessage.includes("Unsupported URL")) {
+      errorResponse = "SnapFlow doesn't support this link yet. Please check the supported platforms.";
+    } else if (errorMessage.includes("Incomplete data") || errorMessage.includes("JSON.parse")) {
+        errorResponse = "Network error while fetching media info. Please try one more time.";
+    } else if (errorMessage.length < 150) {
+        // Pass through cleaner short errors
+        errorResponse = errorMessage.replace(/ERROR: /g, "").substring(0, 150);
     }
 
     return NextResponse.json(
