@@ -1,0 +1,331 @@
+import { NextRequest, NextResponse } from "next/server";
+import { spawn } from "child_process";
+import { existsSync } from "fs";
+
+// Fallback paths for Windows if not in environment PATH
+const YTDLP_PATH = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe\\yt-dlp.exe";
+
+function getExecutable() {
+  if (existsSync(YTDLP_PATH)) return YTDLP_PATH;
+  return "yt-dlp"; // Rely on system PATH
+}
+
+// ─── Platform Detection ───
+const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
+  youtube: [/youtube\.com\/watch/, /youtube\.com\/shorts/, /youtu\.be\//, /youtube\.com\/embed/],
+  tiktok: [/tiktok\.com\/@[\w.]+\/video/, /vm\.tiktok\.com/, /tiktok\.com\/t\//],
+  instagram: [
+    /instagram\.com\/(p|reel|stories|tv|s|highlights)\//, 
+    /instagram\.com\/[\w.]+\/?$/, 
+    /instagr\.am/
+  ],
+  pinterest: [/pinterest\.com\/pin\//, /pin\.it\//],
+  twitter: [/twitter\.com\/\w+\/status/, /x\.com\/\w+\/status/],
+  facebook: [/facebook\.com\/.*\/videos\//, /facebook\.com\/reel\//, /facebook\.com\/watch/, /fb\.watch\//],
+};
+
+function detectPlatform(url: string): string {
+  for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
+    for (const pattern of patterns) {
+      if (pattern.test(url)) return platform;
+    }
+  }
+  return "other";
+}
+
+function isValidURL(str: string): boolean {
+  try {
+    const url = new URL(str);
+    return ["http:", "https:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
+interface FormatInfo {
+  format_id: string;
+  vcodec?: string;
+  acodec?: string;
+  height?: number;
+  ext?: string;
+  filesize?: number;
+  filesize_approx?: number;
+  url?: string; // Direct link from yt-dlp
+}
+
+interface MediaInfo {
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  duration?: number;
+  uploader?: string;
+  channel?: string;
+  formats?: FormatInfo[];
+  ext?: string;
+}
+
+interface Quality {
+  id: string;
+  label: string;
+  height: number;
+  ext: string;
+  filesize: number | null;
+  type: string;
+  format: string;
+  directUrl?: string; // The URL to use for proxy download
+}
+
+function getMediaInfo(url: string): Promise<MediaInfo> {
+  return new Promise((resolve, reject) => {
+    const args = [
+      "--no-warnings",
+      "--dump-json",
+      "--no-download",
+      "--socket-timeout", "25",
+      "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+      "--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "--add-header", "Accept-Language:en-US,en;q=0.9",
+      "--add-header", "X-IG-App-ID:936619743392459", // Public IG App ID
+      "--add-header", "Referer:https://www.instagram.com/",
+      "--add-header", "Origin:https://www.instagram.com",
+      "--extractor-args", "instagram:stories=true;highlights=true",
+      "--no-check-certificates",
+      "--geo-bypass",
+      url,
+    ];
+
+    let stdout = "";
+    let stderr = "";
+
+    const proc = spawn(getExecutable(), args, { timeout: 45000 });
+    proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
+    proc.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
+
+    proc.on("close", (code: number | null) => {
+      if (code !== 0) {
+        reject(new Error(stderr || "Failed to fetch media info"));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch {
+        reject(new Error("Failed to parse media info"));
+      }
+    });
+
+    proc.on("error", (err) => {
+      reject(new Error(`Could not find yt-dlp. ${err.message}`));
+    });
+  });
+}
+
+function buildQualities(info: MediaInfo, url: string): Quality[] {
+  const qualities: Quality[] = [];
+  const formats = info.formats || [];
+  
+  const isInstagramContent = url.includes("instagram.com");
+  const isVideoUrl = isInstagramContent && (url.includes("/stories/") || url.includes("/highlights/") || url.includes("/reel/") || url.includes("/p/"));
+
+  if (formats.length > 0) {
+    const videoFormats = formats
+      .filter((f) => f.vcodec && f.vcodec !== "none" && (f.height || 0) >= 144)
+      .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+    const imageFormats = formats
+      .filter((f) => (!f.vcodec || f.vcodec === "none") && (f.ext === "jpg" || f.ext === "png" || f.ext === "webp" || f.format_id?.includes("photo")))
+      .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+    const seenLabels = new Set<string>();
+
+    for (const f of videoFormats) {
+      const h = f.height || 0;
+      const label =
+        h >= 4320 ? "8K (4320p)" :
+        h >= 2160 ? "4K (2160p)" :
+        h >= 1440 ? "2K (1440p)" :
+        h >= 1080 ? "1080p (Full HD)" :
+        h >= 720 ? "720p (HD)" :
+        h >= 480 ? "480p" :
+        h >= 360 ? "360p" : `${h}p`;
+
+      if (!seenLabels.has(label)) {
+        seenLabels.add(label);
+        qualities.push({
+          id: f.format_id,
+          label,
+          height: h,
+          ext: f.ext || "mp4",
+          filesize: f.filesize || f.filesize_approx || null,
+          type: "video",
+          format: h > 0 ? `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]` : "best",
+          directUrl: f.url,
+        });
+      }
+    }
+
+    for (const f of imageFormats) {
+      const h = f.height || 0;
+      const label = h > 0 ? `${h}p (High Res Image)` : "Original HD Image";
+      if (!seenLabels.has(label)) {
+        seenLabels.add(label);
+        qualities.push({
+          id: f.format_id,
+          label,
+          height: h,
+          ext: f.ext || "jpg",
+          filesize: f.filesize || f.filesize_approx || null,
+          type: "image",
+          format: f.format_id,
+          directUrl: f.url,
+        });
+      }
+    }
+
+    if (qualities.length === 0 || (isVideoUrl && !qualities.some(q => q.type === "video"))) {
+      qualities.unshift({
+        id: "best",
+        label: "Premium HQ Archive",
+        height: 0,
+        ext: isVideoUrl ? "mp4" : (info.ext || "jpg"),
+        filesize: null,
+        type: isVideoUrl ? "video" : "image",
+        format: "best",
+      });
+    }
+
+    const audioBitrates = [
+      { label: "Studio Master (320kbps HL)", abr: 320 },
+      { label: "Pro Grade (256kbps HD)", abr: 256 },
+      { label: "Digital Standard (128kbps)", abr: 128 },
+      { label: "Efficient Echo (48kbps)", abr: 48 },
+    ];
+
+    for (const b of audioBitrates) {
+      qualities.push({
+        id: `audio-${b.abr}`,
+        label: b.label,
+        height: 0,
+        ext: "mp3",
+        filesize: null,
+        type: "audio",
+        format: `bestaudio[abr<=${b.abr}]/bestaudio`,
+      });
+    }
+  } else {
+    qualities.push({
+      id: "best",
+      label: "Premium HQ Archive",
+      height: 0,
+      ext: isVideoUrl ? "mp4" : (info.ext || "jpg"),
+      filesize: null,
+      type: isVideoUrl ? "video" : "image",
+      format: "best",
+    });
+  }
+
+  return qualities;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { url } = body;
+
+    if (!url || typeof url !== "string") {
+      return NextResponse.json({ error: "URL is required." }, { status: 400 });
+    }
+
+    const cleanUrl = url.replace(/<[^>]*>/g, "").trim();
+
+    if (!isValidURL(cleanUrl)) {
+      return NextResponse.json({ error: "Invalid URL format." }, { status: 400 });
+    }
+
+    // CHECK FOR PRIVATE ARCHIVE LINKS
+    if (cleanUrl.includes("/stories/archive/")) {
+        return NextResponse.json({ 
+            error: "Stories Archive links are PRIVATE to your account. Please use the public Story link found in the home feed." 
+        }, { status: 400 });
+    }
+
+    const platform = detectPlatform(cleanUrl);
+    let info: MediaInfo;
+    
+    try {
+      info = await getMediaInfo(cleanUrl);
+    } catch (primaryErr) {
+      console.warn("[PRIMARY FETCH FAILED] Attempting Neural Fallback...", (primaryErr as Error).message);
+      
+      if (platform === "instagram") {
+        try {
+          const res = await fetch(cleanUrl, {
+            headers: { 
+              "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Accept-Language": "en-US,en;q=0.9",
+              "X-IG-App-ID": "936619743392459"
+            }
+          });
+          
+          const html = await res.text();
+          
+          const ogImage = html.match(/property="og:image"\s+content="(.*?)"/)?.[1];
+          const ogVideo = html.match(/property="og:video"\s+content="(.*?)"/)?.[1];
+          const ogTitle = html.match(/property="og:title"\s+content="(.*?)"/)?.[1] || 
+                          html.match(/<title>(.*?)<\/title>/)?.[1];
+          const ogDesc = html.match(/property="og:description"\s+content="(.*?)"/)?.[1];
+          
+          if (ogImage || ogVideo) {
+            info = {
+              title: ogTitle || (cleanUrl.includes("/stories/") ? "Instagram Story" : "Instagram Content"),
+              description: ogDesc || "",
+              thumbnail: ogImage || ogVideo,
+              uploader: "Instagram User",
+              ext: ogVideo ? "mp4" : "jpg",
+              formats: ogVideo ? [{ 
+                format_id: "original_video", 
+                ext: "mp4", 
+                vcodec: "h264", 
+                height: 1080 
+              }] : []
+            };
+          } else if (html.includes("login") || html.includes("Login")) {
+             throw new Error("Instagram login wall detected.");
+          } else {
+            throw primaryErr;
+          }
+        } catch (fallbackErr) {
+          throw primaryErr;
+        }
+      } else {
+        throw primaryErr;
+      }
+    }
+
+    const result = {
+      success: true,
+      platform,
+      title: info.title || info.description?.substring(0, 80) || "Untitled Content",
+      description: (info.description || "").substring(0, 200),
+      thumbnail: info.thumbnail || null,
+      duration: info.duration || 0,
+      uploader: info.uploader || info.channel || "Unknown",
+      qualities: buildQualities(info, cleanUrl),
+    };
+
+    return NextResponse.json(result);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error("[FETCH ERROR]", errorMessage);
+    
+    let errorResponse = "Access Restricted or Invalid Link. Ensure the profile/post is PUBLIC and try again.";
+    if (errorMessage.includes("login wall")) {
+      errorResponse = "This content requires an Instagram login or is PRIVATE. Please try a public link.";
+    }
+
+    return NextResponse.json(
+      { error: errorResponse },
+      { status: 500 }
+    );
+  }
+}
