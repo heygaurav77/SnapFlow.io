@@ -2,6 +2,8 @@
 
 A modern, fast, and secure web application for downloading media from social platforms and shortening URLs. Built with Next.js, TypeScript, and Tailwind CSS.
 
+🌐 **Live Demo**: [https://snap-flow-io.vercel.app/](https://snap-flow-io.vercel.app/)
+
 ## Features
 
 - **Media Downloader**: Download videos and media from YouTube, TikTok, Instagram, Pinterest, Twitter, and Facebook
