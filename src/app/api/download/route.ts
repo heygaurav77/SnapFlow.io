@@ -43,18 +43,25 @@ export async function GET(request: NextRequest) {
     const safeTitle = title.replace(/[<>:"/\\|?*]/g, "").substring(0, 100);
     const fileName = `${safeTitle} - SnapFlow.${ext}`;
 
+    const platform = cleanUrl.includes("instagram.com") ? "instagram" : 
+                     (cleanUrl.includes("youtube.com") || cleanUrl.includes("youtu.be")) ? "youtube" : "other";
+
     // 🚀 NEURAL DIRECT STREAMING (WITH REINFORCED IG APP TRUST)
     if (directUrl && isValidDirectUrl(directUrl)) {
       console.log(`[DOWNLOAD] Direct Proxy Attempt: ${directUrl.substring(0, 50)}...`);
       try {
-        const res = await fetch(directUrl, {
-          headers: { 
-            "User-Agent": mobileUA,
-            "X-IG-App-ID": IG_APP_ID,
-            "Referer": "https://www.instagram.com/",
-            "Origin": "https://www.instagram.com"
-          }
-        });
+        const fetchHeaders: Record<string, string> = {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        };
+
+        if (platform === "instagram") {
+          fetchHeaders["User-Agent"] = mobileUA;
+          fetchHeaders["X-IG-App-ID"] = IG_APP_ID;
+          fetchHeaders["Referer"] = "https://www.instagram.com/";
+          fetchHeaders["Origin"] = "https://www.instagram.com";
+        }
+
+        const res = await fetch(directUrl, { headers: fetchHeaders });
 
         if (res.ok) {
           const contentType = ext === "mp4" ? "video/mp4" : (ext === "mp3" ? "audio/mpeg" : "image/jpeg");
@@ -81,14 +88,21 @@ export async function GET(request: NextRequest) {
       "--ffmpeg-location", getExecutable("ffmpeg"),
       "-f", format,
       "-o", outputPath,
-      "--user-agent", mobileUA,
-      "--add-header", `X-IG-App-ID:${IG_APP_ID}`,
-      "--add-header", "Referer:https://www.instagram.com/",
-      "--add-header", "Origin:https://www.instagram.com",
-      "--extractor-args", "instagram:stories=true;highlights=true",
+      "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       "--no-check-certificates",
-      cleanUrl,
     ];
+
+    if (platform === "instagram") {
+      args.push(
+        "--user-agent", mobileUA,
+        "--add-header", `X-IG-App-ID:${IG_APP_ID}`,
+        "--add-header", "Referer:https://www.instagram.com/",
+        "--add-header", "Origin:https://www.instagram.com",
+        "--extractor-args", "instagram:stories=true;highlights=true"
+      );
+    }
+
+    args.push(cleanUrl);
 
     return new Promise<Response>((resolve) => {
       const proc = spawn(getExecutable("yt-dlp"), args, { timeout: 300000 });
@@ -98,7 +112,7 @@ export async function GET(request: NextRequest) {
       proc.on("close", (code: number | null) => {
         if (code !== 0) {
           console.error("[DEEP ENGINE ERROR]", stderr);
-          resolve(NextResponse.json({ error: "Access Restricted. This story might be from a Private Account or requires login." }, { status: 500 }) as any);
+          resolve(NextResponse.json({ error: "Access Restricted. This might be a private video or requires login." }, { status: 500 }) as any);
           return;
         }
 

@@ -44,6 +44,7 @@ interface MediaInfo {
   uploader: string;
   qualities: Quality[];
   url: string;
+  isVertical?: boolean;
 }
 
 interface ToastItem {
@@ -462,7 +463,7 @@ export default function HeroSection() {
                 ×
               </button>
               {/* Preview */}
-              <div className="aspect-video bg-surface-light flex items-center justify-center overflow-hidden relative">
+              <div className={`${media.isVertical ? "aspect-[9/16] max-h-[400px]" : "aspect-video"} bg-surface-light flex items-center justify-center overflow-hidden relative mx-auto`}>
                 {media.thumbnail && (
                   <img
                     src={`/api/thumbnail?url=${encodeURIComponent(media.thumbnail)}`}

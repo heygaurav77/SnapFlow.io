@@ -15,6 +15,7 @@ export default function Home() {
       <Navbar />
       <main className="relative z-10">
         <HeroSection />
+        <PlatformsSection />
         <FeedbackSection />
         <DisclaimerSection />
       </main>

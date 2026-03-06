@@ -63,6 +63,8 @@ interface MediaInfo {
   formats?: FormatInfo[];
   ext?: string;
   url?: string; // Top-level URL from yt-dlp
+  width?: number;
+  height?: number;
 }
 
 interface Quality {
@@ -76,24 +78,29 @@ interface Quality {
   directUrl?: string; // The URL to use for proxy download
 }
 
-function getMediaInfo(url: string): Promise<MediaInfo> {
+function getMediaInfo(url: string, platform: string): Promise<MediaInfo> {
   return new Promise((resolve, reject) => {
     const args = [
       "--no-warnings",
       "--dump-json",
       "--no-download",
       "--socket-timeout", "25",
-      "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
-      "--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-      "--add-header", "Accept-Language:en-US,en;q=0.9",
-      "--add-header", "X-IG-App-ID:936619743392459", // Public IG App ID
-      "--add-header", "Referer:https://www.instagram.com/",
-      "--add-header", "Origin:https://www.instagram.com",
-      "--extractor-args", "instagram:stories=true;highlights=true",
+      "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       "--no-check-certificates",
       "--geo-bypass",
-      url,
     ];
+
+    if (platform === "instagram") {
+      args.push(
+        "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+        "--add-header", "X-IG-App-ID:936619743392459",
+        "--add-header", "Referer:https://www.instagram.com/",
+        "--add-header", "Origin:https://www.instagram.com",
+        "--extractor-args", "instagram:stories=true;highlights=true"
+      );
+    }
+
+    args.push(url);
 
     let stdout = "";
     let stderr = "";
@@ -120,12 +127,17 @@ function getMediaInfo(url: string): Promise<MediaInfo> {
   });
 }
 
-function buildQualities(info: MediaInfo, url: string): Quality[] {
+function buildQualities(info: MediaInfo, url: string, platform: string): Quality[] {
   const qualities: Quality[] = [];
   const formats = info.formats || [];
   
-  const isInstagramContent = url.includes("instagram.com");
-  const isVideoUrl = isInstagramContent && (url.includes("/stories/") || url.includes("/highlights/") || url.includes("/reel/") || url.includes("/p/"));
+  const isVideoUrl = 
+    platform === "youtube" || 
+    platform === "tiktok" || 
+    (platform === "instagram" && (url.includes("/stories/") || url.includes("/highlights/") || url.includes("/reel/") || url.includes("/p/"))) ||
+    platform === "facebook" ||
+    platform === "twitter" ||
+    (info.ext === "mp4" || info.ext === "webm" || info.ext === "mkv");
 
   if (formats.length > 0) {
     const videoFormats = formats
@@ -162,6 +174,21 @@ function buildQualities(info: MediaInfo, url: string): Quality[] {
           directUrl: f.url || info.url || formats[0]?.url,
         });
       }
+    }
+
+    // Fallback if no specific high res videos found but we have formats
+    if (qualities.length === 0 && videoFormats.length > 0) {
+        const f = videoFormats[0];
+        qualities.push({
+            id: f.format_id,
+            label: "Standard Quality",
+            height: f.height || 0,
+            ext: f.ext || "mp4",
+            filesize: f.filesize || f.filesize_approx || null,
+            type: "video",
+            format: "best",
+            directUrl: f.url || info.url
+        });
     }
 
     for (const f of imageFormats) {
@@ -255,7 +282,7 @@ export async function POST(request: NextRequest) {
     let info: MediaInfo;
     
     try {
-      info = await getMediaInfo(cleanUrl);
+      info = await getMediaInfo(cleanUrl, platform);
       // 🔥 CRITICAL FALLBACK: Ensure base 'url' is set for the Download Route
       if (!info.url && info.formats && info.formats.length > 0) {
           info.url = info.formats[0].url;
@@ -318,7 +345,8 @@ export async function POST(request: NextRequest) {
       thumbnail: info.thumbnail || null,
       duration: info.duration || 0,
       uploader: info.uploader || info.channel || "Unknown",
-      qualities: buildQualities(info, cleanUrl),
+      qualities: buildQualities(info, cleanUrl, platform),
+      isVertical: (info.height || 0) > (info.width || 0) || cleanUrl.includes("/shorts/") || cleanUrl.includes("/reel/") || cleanUrl.includes("/stories/"),
     };
 
     return NextResponse.json(result);
