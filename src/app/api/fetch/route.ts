@@ -159,7 +159,7 @@ function buildQualities(info: MediaInfo, url: string): Quality[] {
           filesize: f.filesize || f.filesize_approx || null,
           type: "video",
           format: h > 0 ? `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]` : "best",
-          directUrl: f.url || info.url,
+          directUrl: f.url || info.url || formats[0]?.url,
         });
       }
     }
@@ -177,7 +177,7 @@ function buildQualities(info: MediaInfo, url: string): Quality[] {
           filesize: f.filesize || f.filesize_approx || null,
           type: "image",
           format: f.format_id,
-          directUrl: f.url || info.url,
+          directUrl: f.url || info.url || formats[0]?.url,
         });
       }
     }
@@ -256,6 +256,10 @@ export async function POST(request: NextRequest) {
     
     try {
       info = await getMediaInfo(cleanUrl);
+      // 🔥 CRITICAL FALLBACK: Ensure base 'url' is set for the Download Route
+      if (!info.url && info.formats && info.formats.length > 0) {
+          info.url = info.formats[0].url;
+      }
     } catch (primaryErr) {
       console.warn("[PRIMARY FETCH FAILED] Attempting Neural Fallback...", (primaryErr as Error).message);
       
@@ -283,6 +287,7 @@ export async function POST(request: NextRequest) {
               title: ogTitle || (cleanUrl.includes("/stories/") ? "Instagram Story" : "Instagram Content"),
               description: ogDesc || "",
               thumbnail: ogImage || ogVideo,
+              url: ogVideo || ogImage, // Use 'url', not 'directUrl'
               uploader: "Instagram User",
               ext: ogVideo ? "mp4" : "jpg",
               formats: ogVideo ? [{ 
@@ -308,8 +313,8 @@ export async function POST(request: NextRequest) {
     const result = {
       success: true,
       platform,
-      title: info.title || info.description?.substring(0, 80) || "Untitled Content",
-      description: (info.description || "").substring(0, 200),
+      title: (info.title || info.description?.substring(0, 50) || "SnapFlow_Story").substring(0, 50),
+      description: (info.description || "").substring(0, 150),
       thumbnail: info.thumbnail || null,
       duration: info.duration || 0,
       uploader: info.uploader || info.channel || "Unknown",

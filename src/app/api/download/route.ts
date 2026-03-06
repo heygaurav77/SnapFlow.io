@@ -58,12 +58,13 @@ export async function GET(request: NextRequest) {
 
         if (res.ok) {
           const contentType = ext === "mp4" ? "video/mp4" : (ext === "mp3" ? "audio/mpeg" : "image/jpeg");
-          return new Response(res.body, {
+          const buffer = await res.arrayBuffer(); // Pre-fetch buffer for maximum stability
+          return new Response(Buffer.from(buffer), {
             headers: {
               "Content-Disposition": `attachment; filename="${fileName}"`,
               "Content-Type": contentType,
+              "Content-Length": buffer.byteLength.toString(),
               "Cache-Control": "no-cache",
-              "X-Platform": "SnapFlow_Proxy"
             },
           });
         }

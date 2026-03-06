@@ -214,7 +214,12 @@ export default function HeroSection() {
 
     const a = document.createElement("a");
     a.href = downloadUrl;
-    a.download = "";
+    
+    const safeTitle = (media.title || "SnapFlow_Video")
+      .replace(/[<>:"/\\|?*]/g, "")
+      .substring(0, 50); 
+    
+    a.download = `${safeTitle} - SnapFlow`;
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
