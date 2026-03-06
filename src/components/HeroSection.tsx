@@ -341,9 +341,9 @@ export default function HeroSection() {
                     <button
                       key={sub}
                       onClick={() => setActiveSubTab(sub)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
                         activeSubTab === sub
-                          ? "bg-white/10 text-white"
+                          ? "btn-premium-pill-primary scale-105"
                           : "bg-white/5 text-muted hover:bg-white/10 hover:text-white border border-white/5"
                       }`}
                     >
@@ -393,16 +393,16 @@ export default function HeroSection() {
                 <button
                   onClick={handleFetch}
                   disabled={loading}
-                  className="btn-highlight px-6 sm:px-10 py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-primary to-accent text-white font-black text-lg flex justify-center items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-wait w-full sm:w-auto mt-2 sm:mt-0 uppercase tracking-wider relative overflow-hidden"
+                  className="btn-premium-pill-primary w-full sm:w-auto mt-2 sm:mt-0 uppercase tracking-widest text-sm"
                 >
                   {loading ? (
                     <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       <span className="animate-pulse">{t.hero.searching}</span>
                     </div>
                   ) : (
                     <>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
                       </svg>
                       <span>{t.hero.search}</span>
@@ -501,29 +501,29 @@ export default function HeroSection() {
               </div>
 
               {/* Quality Tabs - Video / Audio */}
-              <div className="flex gap-2 mb-5 p-1 bg-white/[0.04] rounded-[20px] border border-white/[0.05]">
+              <div className="flex gap-2 mb-5 p-1 bg-white/[0.04] rounded-full border border-white/[0.05]">
                 <button
                   onClick={() => setActivePopupTab("video")}
-                  className={`flex-1 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
+                  className={`flex-1 py-3 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                     activePopupTab === "video" 
-                      ? "bg-white/10 text-white shadow-xl" 
+                      ? "bg-white/10 text-white shadow-lg" 
                       : "text-white/20 hover:text-white"
                   }`}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                   </svg>
                   Video
                 </button>
                 <button
                   onClick={() => setActivePopupTab("audio")}
-                  className={`flex-1 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
+                  className={`flex-1 py-3 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                     activePopupTab === "audio" 
-                      ? "bg-white/10 text-white shadow-xl" 
+                      ? "bg-white/10 text-white shadow-lg" 
                       : "text-white/20 hover:text-white"
                   }`}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
                   </svg>
                   Audio
@@ -548,11 +548,11 @@ export default function HeroSection() {
                         setSelectedType(q.type);
                         showToast(`Selected: ${q.label}`, "info");
                       }}
-                      className={`group flex items-center justify-between px-4 py-3.5 rounded-[18px] text-[10px] font-black uppercase tracking-[0.15em] transition-all border ${
+                      className={`group flex items-center justify-between px-5 py-4 rounded-full text-[11px] font-bold uppercase tracking-wide transition-all border ${
                         selectedFormat === q.format
                           ? activePopupTab === "video"
-                            ? "bg-primary/10 border-primary/40 text-white shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-                            : "bg-accent/10 border-accent/40 text-white shadow-[0_0_15px_rgba(168,85,247,0.1)]"
+                            ? "bg-primary/10 border-primary/40 text-white shadow-lg"
+                            : "bg-accent/10 border-accent/40 text-white shadow-lg"
                           : "bg-white/[0.02] border-white/[0.05] text-white/30 hover:text-white hover:bg-white/[0.06] hover:border-white/10"
                       }`}
                     >
@@ -561,7 +561,7 @@ export default function HeroSection() {
                           {q.label}
                         </span>
                         {q.filesize && (
-                          <span className="text-[7px] opacity-20 group-hover:opacity-40 font-bold uppercase tracking-tight">Size: {(q.filesize / 1024 / 1024).toFixed(1)}MB</span>
+                          <span className="text-[8px] opacity-20 group-hover:opacity-40 font-bold uppercase tracking-tight">Size: {(q.filesize / 1024 / 1024).toFixed(1)}MB</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
@@ -578,12 +578,12 @@ export default function HeroSection() {
               <button
                 onClick={initiateDownloadFlow}
                 disabled={downloading}
-                className={`w-full py-4 rounded-[22px] font-black uppercase tracking-[0.25em] text-[10px] transition-all flex items-center justify-center gap-3 relative overflow-hidden group ${
+                className={`w-full py-4 rounded-full font-bold uppercase tracking-[0.2em] text-[12px] transition-all flex items-center justify-center gap-3 relative overflow-hidden group ${
                   downloading
                     ? "bg-primary text-white cursor-wait"
                     : selectedFormat 
-                      ? "bg-primary text-white shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98]" 
-                      : "bg-[#161821] text-white/5 cursor-not-allowed border border-white/[0.03]"
+                      ? "btn-premium-pill-primary shadow-2xl scale-[1.02] active:scale-[0.98]" 
+                      : "bg-[#161821] text-white/10 cursor-not-allowed border border-white/[0.03]"
                 }`}
               >
                 {/* Downloading Animation overlay */}

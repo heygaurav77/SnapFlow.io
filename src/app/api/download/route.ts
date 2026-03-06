@@ -46,8 +46,10 @@ export async function GET(request: NextRequest) {
     const platform = cleanUrl.includes("instagram.com") ? "instagram" : 
                      (cleanUrl.includes("youtube.com") || cleanUrl.includes("youtu.be")) ? "youtube" : "other";
 
-    // 🚀 NEURAL DIRECT STREAMING (WITH REINFORCED IG APP TRUST)
-    if (directUrl && isValidDirectUrl(directUrl)) {
+    // 🚀 NEURAL DIRECT STREAMING (SKIP FOR YOUTUBE TO ENSURE CONSOLIDATED QUALITY)
+    const skipProxy = platform === "youtube" || cleanUrl.includes("googlevideo.com");
+
+    if (!skipProxy && directUrl && isValidDirectUrl(directUrl)) {
       console.log(`[DOWNLOAD] Direct Proxy Attempt: ${directUrl.substring(0, 50)}...`);
       try {
         const fetchHeaders: Record<string, string> = {
@@ -92,6 +94,12 @@ export async function GET(request: NextRequest) {
       "--no-check-certificates",
     ];
 
+    if (type === "audio") {
+      args.push("--extract-audio", "--audio-format", "mp3");
+    } else if (type === "video" && platform === "youtube") {
+      args.push("--merge-output-format", "mp4");
+    }
+
     if (platform === "instagram") {
       args.push(
         "--user-agent", mobileUA,
@@ -102,36 +110,63 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    args.push("--force-overwrites", "--no-mtime");
     args.push(cleanUrl);
+
+    console.log(`[DEEP ENGINE] Executing: ${getExecutable("yt-dlp")} ${args.join(" ")}`);
 
     return new Promise<Response>((resolve) => {
       const proc = spawn(getExecutable("yt-dlp"), args, { timeout: 300000 });
       let stderr = "";
       proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+      proc.stdout.on("data", (d: Buffer) => { console.log(`[yt-dlp stdout] ${d.toString().substring(0, 100)}`); });
 
       proc.on("close", (code: number | null) => {
         if (code !== 0) {
           console.error("[DEEP ENGINE ERROR]", stderr);
-          resolve(NextResponse.json({ error: "Access Restricted. This might be a private video or requires login." }, { status: 500 }) as any);
+          const errorMsg = stderr.includes("Sign in to confirm you are not a bot") 
+            ? "YouTube Bot Detection: Please try again in 5 minutes or use a different link."
+            : (stderr || "Access Restricted. This might be a private video or requires login.");
+          
+          resolve(NextResponse.json({ error: errorMsg }, { status: 500 }) as any);
           return;
         }
 
         const files = readdirSync(DOWNLOADS_DIR).filter((f: string) => f.startsWith(fileId));
         if (files.length === 0) {
-          resolve(NextResponse.json({ error: "File delivery failed." }, { status: 500 }) as any);
+          console.error(`[DEEP ENGINE] No file found starting with ${fileId} in ${DOWNLOADS_DIR}`);
+          console.log("[DEEP ENGINE] Current dir contents:", readdirSync(DOWNLOADS_DIR));
+          resolve(NextResponse.json({ error: "File delivery failed. Extraction engine did not produce a file." }, { status: 500 }) as any);
           return;
         }
 
-        const filePath = join(DOWNLOADS_DIR, files[0]);
+        const actualFileName = files[0];
+        const filePath = join(DOWNLOADS_DIR, actualFileName);
+        const actualExt = actualFileName.split(".").pop() || ext;
+        
+        console.log(`[DEEP ENGINE] Delivering file: ${filePath} (Detected extension: ${actualExt})`);
         const stats = statSync(filePath);
         const fileStream = createReadStream(filePath);
-        const contentType = ext === "mp4" ? "video/mp4" : (ext === "mp3" ? "audio/mpeg" : "image/jpeg");
+        
+        const contentTypes: Record<string, string> = {
+          mp4: "video/mp4",
+          mkv: "video/x-matroska",
+          webm: "video/webm",
+          mp3: "audio/mpeg",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          webp: "image/webp",
+          png: "image/png"
+        };
+        
+        const contentType = contentTypes[actualExt.toLowerCase()] || (actualExt === "mp3" ? "audio/mpeg" : "video/mp4");
 
         resolve(new Response(fileStream as any, {
           headers: {
-            "Content-Disposition": `attachment; filename="${fileName}"`,
+            "Content-Disposition": `attachment; filename="${safeTitle} - SnapFlow.${actualExt}"`,
             "Content-Type": contentType,
             "Content-Length": stats.size.toString(),
+            "Cache-Control": "no-cache",
           },
         }));
       });
