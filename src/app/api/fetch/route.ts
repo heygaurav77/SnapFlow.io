@@ -62,6 +62,7 @@ interface MediaInfo {
   channel?: string;
   formats?: FormatInfo[];
   ext?: string;
+  url?: string; // Top-level URL from yt-dlp
 }
 
 interface Quality {
@@ -158,7 +159,7 @@ function buildQualities(info: MediaInfo, url: string): Quality[] {
           filesize: f.filesize || f.filesize_approx || null,
           type: "video",
           format: h > 0 ? `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]` : "best",
-          directUrl: f.url,
+          directUrl: f.url || info.url,
         });
       }
     }
@@ -176,7 +177,7 @@ function buildQualities(info: MediaInfo, url: string): Quality[] {
           filesize: f.filesize || f.filesize_approx || null,
           type: "image",
           format: f.format_id,
-          directUrl: f.url,
+          directUrl: f.url || info.url,
         });
       }
     }
@@ -190,6 +191,7 @@ function buildQualities(info: MediaInfo, url: string): Quality[] {
         filesize: null,
         type: isVideoUrl ? "video" : "image",
         format: "best",
+        directUrl: info.url,
       });
     }
 
@@ -220,6 +222,7 @@ function buildQualities(info: MediaInfo, url: string): Quality[] {
       filesize: null,
       type: isVideoUrl ? "video" : "image",
       format: "best",
+      directUrl: info.url,
     });
   }
 
