@@ -1,5 +1,6 @@
 # SnapFlow.io
-<img width="462" height="287" alt="image" src="https://github.com/user-attachments/assets/57748953-0907-4f93-85e3-86a84cf21f08" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/ce1d2b1b-55d4-46a2-8427-7626b5b35f75" />
+
 
 A modern, fast, and secure web application for downloading media from social platforms and shortening URLs. Built with Next.js, TypeScript, and Tailwind CSS.
 
