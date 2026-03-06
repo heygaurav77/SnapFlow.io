@@ -8,13 +8,22 @@ import { join } from "path";
 // These paths are used for local Windows development
 const LOCAL_YTDLP = "C:\\Users\\goura\\AppData\\Local\\Microsoft\\WinGet\\Packages\\yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe\\yt-dlp.exe";
 
-function getExecutable() {
-  // 1. Check project 'bin' folder (Essential for Vercel/Production)
-  const projectBin = join(process.cwd(), "bin", process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
-  if (existsSync(projectBin)) return projectBin;
+function getExecutable(name: "yt-dlp" | "ffmpeg") {
+  // 1. Check local 'bin' directory (Essential for Vercel/Production)
+  const isWin = process.platform === "win32";
+  const binaryName = isWin ? `${name}.exe` : name;
+  const projectBin = join(process.cwd(), "bin", binaryName);
+  
+  if (existsSync(projectBin)) {
+    // Try to ensure permissions on Linux/Mac
+    if (!isWin) {
+      try { spawn("chmod", ["+x", projectBin]); } catch (e) {}
+    }
+    return projectBin;
+  }
 
   // 2. Check hardcoded local Windows path
-  if (process.platform === "win32" && existsSync(LOCAL_YTDLP)) return LOCAL_YTDLP;
+  if (name === "yt-dlp" && process.platform === "win32" && existsSync(LOCAL_YTDLP)) return LOCAL_YTDLP;
 
   // 3. Last resort: assume it's in system PATH
   return "yt-dlp";
@@ -115,7 +124,7 @@ function getMediaInfo(url: string, platform: string): Promise<MediaInfo> {
     let stdout = "";
     let stderr = "";
 
-    const proc = spawn(getExecutable(), args, { timeout: 45000 });
+    const proc = spawn(getExecutable("yt-dlp"), args, { timeout: 45000 });
     proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
     proc.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
 
